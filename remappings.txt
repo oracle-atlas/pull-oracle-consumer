@@ -1,0 +1,6 @@
+forge-std/=lib/forge-std/src/
+types/=src/types/
+constants/=src/constants/
+libraries/=src/libraries/
+interfaces/=src/interfaces/
+base/=src/base/

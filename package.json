@@ -1,0 +1,24 @@
+{
+  "name": "@atlas-oracle/pull-oracle-consumer",
+  "version": "1.0.0",
+  "description": "Solidity SDK for verifying and consuming Atlas Oracle pull-based price feeds",
+  "license": "BUSL-1.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oracle-atlas/pull-oracle-consumer.git"
+  },
+  "files": [
+    "src/",
+    "src-advanced/",
+    "README.md"
+  ],
+  "packageManager": "yarn@4.11.0",
+  "scripts": {
+    "format": "prettier --write 'src*/**/*.sol' 'test/**/*.sol' 'script/**/*.sol' 'examples/**/*.sol'",
+    "check": "prettier --check 'src*/**/*.sol' 'test/**/*.sol' 'script/**/*.sol' 'examples/**/*.sol'"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1",
+    "prettier-plugin-solidity": "^2.2.1"
+  }
+}
