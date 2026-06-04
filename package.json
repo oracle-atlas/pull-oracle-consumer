@@ -14,8 +14,8 @@
   ],
   "packageManager": "yarn@4.11.0",
   "scripts": {
-    "format": "prettier --write 'src*/**/*.sol' 'test/**/*.sol' 'script/**/*.sol' 'examples/**/*.sol'",
-    "check": "prettier --check 'src*/**/*.sol' 'test/**/*.sol' 'script/**/*.sol' 'examples/**/*.sol'"
+    "format": "prettier --write 'src*/**/*.sol' 'test/**/*.sol' 'examples/**/*.sol'",
+    "check": "prettier --check 'src*/**/*.sol' 'test/**/*.sol' 'examples/**/*.sol'"
   },
   "devDependencies": {
     "prettier": "^3.8.1",

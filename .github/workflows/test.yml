@@ -7,12 +7,9 @@ on:
   pull_request:
   workflow_dispatch:
 
-env:
-  FOUNDRY_PROFILE: ci
-
 jobs:
   check:
-    name: Foundry project
+    name: Build & Test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -25,14 +22,28 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Show Forge version
-        run: forge --version
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-      - name: Run Forge fmt
-        run: forge fmt --check
+      - name: Enable Corepack
+        run: corepack enable
 
-      - name: Run Forge build
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Check formatting
+        run: yarn check
+
+      - name: Build Standard
         run: forge build --sizes
 
-      - name: Run Forge tests
+      - name: Build Advanced
+        run: FOUNDRY_PROFILE=advanced forge build --sizes
+
+      - name: Test Standard
         run: forge test -vvv
+
+      - name: Test Advanced
+        run: FOUNDRY_PROFILE=advanced forge test -vvv

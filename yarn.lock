@@ -5,6 +5,15 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@atlas-oracle/pull-oracle-consumer@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@atlas-oracle/pull-oracle-consumer@workspace:."
+  dependencies:
+    prettier: "npm:^3.8.1"
+    prettier-plugin-solidity: "npm:^2.2.1"
+  languageName: unknown
+  linkType: soft
+
 "@bytecodealliance/preview2-shim@npm:^0.17.2":
   version: 0.17.8
   resolution: "@bytecodealliance/preview2-shim@npm:0.17.8"
@@ -49,15 +58,6 @@ __metadata:
   checksum: 10c0/33169b594009e48f570471271be7eac7cdcf88a209eed39ac3b8d6d78984039bfa9132f82b7e6ba3b06711f3bfe0222a62a1bfb87c43f50c25a83df1b78a2c42
   languageName: node
   linkType: hard
-
-"pull-oracle-sdk@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "pull-oracle-sdk@workspace:."
-  dependencies:
-    prettier: "npm:^3.8.1"
-    prettier-plugin-solidity: "npm:^2.2.1"
-  languageName: unknown
-  linkType: soft
 
 "semver@npm:^7.7.3":
   version: 7.7.4
