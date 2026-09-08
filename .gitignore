@@ -18,3 +18,8 @@ node_modules/
 .vscode/
 .yarn/
 **/.DS_Store
+
+# Tron (TronBox) local test suite — generated / local-only artifacts.
+# tron/yarn.lock and tron/migrations/ are real sources — keep them tracked.
+tron/build/
+tron/contracts/

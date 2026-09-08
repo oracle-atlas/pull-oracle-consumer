@@ -1,0 +1,16 @@
+{
+  "name": "pull-oracle-consumer-tron",
+  "private": true,
+  "packageManager": "yarn@4.11.0",
+  "description": "TronBox + TRE local test suite for the pull-oracle-consumer SDK (contracts are generated from the Foundry sources — do not edit tron/contracts/ directly)",
+  "scripts": {
+    "sync": "node scripts/sync-contracts.js",
+    "compile": "tronbox compile",
+    "test": "tronbox test"
+  },
+  "devDependencies": {
+    "chai": "^6.2.2",
+    "ethers": "^6.17.0",
+    "tronweb": "^6.5.0"
+  }
+}
