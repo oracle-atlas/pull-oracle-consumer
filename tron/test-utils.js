@@ -185,6 +185,20 @@ function decodeWords(hex) {
   return words;
 }
 
+// Decode an ABI-encoded (uint256[], uint256[]) return payload (e.g. batch
+// search results) into two BigInt arrays. Offsets are byte-based, relative to
+// the start of the return-data word stream.
+function decodeTwoUint256Arrays(hex) {
+  const words = decodeWords(hex);
+  const out = [];
+  for (let k = 0; k < 2; k++) {
+    const wordIdx = Number(words[k]) / 32;
+    const len = Number(words[wordIdx]);
+    out.push(words.slice(wordIdx + 1, wordIdx + 1 + len));
+  }
+  return out;
+}
+
 // Execute a raw constant (view/pure) call with full calldata control.
 // `input` is the complete calldata: [function head][oracle extraData] — the
 // trailing extraData lands in calldata exactly like the relay service appends
@@ -216,7 +230,15 @@ function constantResultHex(res) {
 
 function constantRetText(res) {
   const ret = res && res.transaction && res.transaction.ret;
-  return Array.isArray(ret) ? ret.map((r) => String(r.ret || r)).join('|') : '';
+  if (!Array.isArray(ret)) return '';
+  // TRE constant calls: success entries are empty objects (contractRet is not
+  // populated), failures carry {ret: 'FAILED'} / {ret: 'OUT_OF_ENERGY'}.
+  return ret
+    .map((r) => {
+      if (r && typeof r === 'object') return String(r.ret || r.contractRet || 'SUCCESS');
+      return String(r);
+    })
+    .join('|');
 }
 
 // Assert a constant call succeeded and return the decoded return-data words.
@@ -261,7 +283,7 @@ function expectConstantRevert(res, reason, expectedWords) {
 // getTransactionInfo until the receipt (with `receipt.result`) is available.
 async function waitForTransactionReceipt(txid, { timeoutMs = 30000, intervalMs = 300 } = {}) {
   const deadline = Date.now() + timeoutMs;
-  for (;;) {
+  for (; ;) {
     const info = await tronWeb.trx.getTransactionInfo(txid);
     if (info && Object.keys(info).length > 0 && info.receipt) return info;
     if (Date.now() > deadline) {
@@ -357,10 +379,11 @@ async function setBalance(address, trxAmount) {
   await tronWeb.send('tre_setAccountBalance', [address, trxAmount * 1e6]);
 }
 
-// Current node block time in seconds.
+// Latest node block time in seconds, as BigInt — matches the BigInt domain
+// of decoded return values / revert args, so assertions compare like-for-like.
 async function currentSeconds() {
   const block = await tronWeb.trx.getCurrentBlock();
-  return Math.floor(block.block_header.raw_data.timestamp / 1000);
+  return BigInt(block.block_header.raw_data.timestamp) / 1000n;
 }
 
 // Fetch all TRE accounts' private keys (accounts[i] ↔ privateKeys[i]).
@@ -419,6 +442,7 @@ module.exports = {
   encodeCallData,
   writeWord,
   decodeWords,
+  decodeTwoUint256Arrays,
   callConstantRaw,
   callConstant,
   constantResultHex,
