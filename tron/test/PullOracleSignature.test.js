@@ -39,7 +39,7 @@ contract('PullOracleSignature', function (accounts) {
   let mock;
 
   before(async function () {
-    await setBalance(accounts[0], 10000000); // 10,000,000 TRX
+    await setBalance(accounts[0], 10000000);
     mock = await PullOracleSignatureMock.new({ from: accounts[0] });
   });
 
