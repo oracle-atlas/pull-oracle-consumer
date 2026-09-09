@@ -31,6 +31,8 @@ const MAGIC_MARKER = 0x7096;
 const FEED_PACKAGE_SIZE = 20;
 // [1B Count][65B Signature][2B Marker]
 const FOOTER_SIZE = 68;
+// Absolute minimum bytes for a valid call: 4 (Selector) + 20 (one package) + 68 (Footer).
+const MIN_CALLDATA_SIZE = 92;
 // EIP-2 upper bound for the 's' component: floor(secp256k1 n / 2).
 const MAX_LOW_S_VALUE = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0n;
 
@@ -43,6 +45,10 @@ const ZERO_ADDR = '410000000000000000000000000000000000000000';
 
 const strip0x = (hex) => String(hex).replace(/^0x/, '');
 
+// Left-pad a private key to 32 bytes — foundry's vm.addr/sign accept short
+// keys like 0x01, ethers' secp256k1 layer does not.
+const normalizePk = (pk) => ethers.zeroPadValue(pk, 32);
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /* ————————————————————————————————————————————————————————————————————————
@@ -52,7 +58,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Derive the 0x-hex (EVM-style, 20-byte) address from a private key — mirrors
 // foundry vm.addr. Pure JS: usable before the tronWeb global is ready.
 function computeSignerAddress(pk) {
-  return ethers.computeAddress(pk);
+  return ethers.computeAddress(normalizePk(pk));
 }
 
 // 0x-hex 20-byte address → Tron 41-hex (for constructor args / TronWeb APIs).
@@ -73,6 +79,19 @@ function toHex(address) {
 }
 
 /* ————————————————————————————————————————————————————————————————————————
+                        TEST SIGNERS (mirrors BaseTest.t.sol)
+———————————————————————————————————————————————————————————————————————— */
+
+const PRIMARY_SIGNER_PK = '0x3984ba7c2f5d0b43eeed79c2f6498969596432ddce18ba031ef1a6d78b15c55b';
+const SECONDARY_SIGNER_PK = '0xcdfdcba39f49d5858113d6b142ee2128407bd65a9604af271a9cf31a32009131';
+const UNAUTHORIZED_SIGNER_PK = '0x01';
+
+// EVM-style 0x-hex addresses derived above (pure ethers — safe at module load).
+const PRIMARY_SIGNER = ethers.computeAddress(normalizePk(PRIMARY_SIGNER_PK));
+const SECONDARY_SIGNER = ethers.computeAddress(normalizePk(SECONDARY_SIGNER_PK));
+const UNAUTHORIZED_SIGNER = ethers.computeAddress(normalizePk(UNAUTHORIZED_SIGNER_PK));
+
+/* ————————————————————————————————————————————————————————————————————————
                             SIGNING HELPERS
 ———————————————————————————————————————————————————————————————————————— */
 
@@ -90,7 +109,7 @@ function errorSelector(reason) {
 // check in PullOracleSignature. concat() returns a hex string on ethers 6.17,
 // so getBytes() here is load-bearing: it hex-decodes it back to bytes.
 function signDigest(pk, digest) {
-  const { r, s, yParity } = new ethers.SigningKey(pk).sign(digest);
+  const { r, s, yParity } = new ethers.SigningKey(normalizePk(pk)).sign(digest);
   return ethers.getBytes(ethers.concat([r, s, ethers.toBeHex(yParity + 27, 1)]));
 }
 
@@ -373,6 +392,7 @@ module.exports = {
   MAGIC_MARKER,
   FEED_PACKAGE_SIZE,
   FOOTER_SIZE,
+  MIN_CALLDATA_SIZE,
   MAX_LOW_S_VALUE,
   ZERO_ADDR,
   // addresses
@@ -380,6 +400,13 @@ module.exports = {
   toTronHex,
   wordToAddress,
   toHex,
+  // test signers
+  PRIMARY_SIGNER_PK,
+  SECONDARY_SIGNER_PK,
+  UNAUTHORIZED_SIGNER_PK,
+  PRIMARY_SIGNER,
+  SECONDARY_SIGNER,
+  UNAUTHORIZED_SIGNER,
   // signing
   errorSelector,
   signDigest,

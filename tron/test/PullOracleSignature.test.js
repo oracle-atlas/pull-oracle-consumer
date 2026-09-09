@@ -12,7 +12,6 @@ const PullOracleSignatureMock = artifacts.require('PullOracleSignatureMock');
 const { expect } = require('chai');
 const ethers = require('ethers');
 const {
-  computeSignerAddress,
   wordToAddress,
   encodeCallData,
   writeWord,
@@ -21,12 +20,11 @@ const {
   expectConstantRevert,
   callConstantRaw,
   setBalance,
+  MAGIC_MARKER,
   MAX_LOW_S_VALUE,
+  PRIMARY_SIGNER_PK,
+  PRIMARY_SIGNER,
 } = require('../test-utils');
-
-// Mirrors test/utils/BaseTest.t.sol.
-const PRIMARY_SIGNER_PK = '0x3984ba7c2f5d0b43eeed79c2f6498969596432ddce18ba031ef1a6d78b15c55b';
-const PRIMARY_SIGNER = computeSignerAddress(PRIMARY_SIGNER_PK);
 
 // secp256k1 curve order n (invalid r values: 0 and n).
 const CURVE_ORDER_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
@@ -61,7 +59,8 @@ contract('PullOracleSignature', function (accounts) {
     const countBytes = new Uint8Array([count]);
     const digest = ethers.keccak256(ethers.concat([packagesBytes, countBytes]));
     const sig = signDigest(signerPk, digest);
-    const marker = new Uint8Array([0x70, 0x96]);
+    // Marker bytes derived from the protocol constant — no duplicated literal.
+    const marker = new Uint8Array([MAGIC_MARKER >> 8, MAGIC_MARKER & 0xff]);
 
     // NOTE: ethers 6.17's concat() returns a 0x-prefixed hex STRING, not
     // Uint8Array — wrap with getBytes so byte writes below operate on bytes.
