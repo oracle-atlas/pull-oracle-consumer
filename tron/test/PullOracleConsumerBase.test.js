@@ -12,13 +12,13 @@
 const PullOracleConsumerBaseMock = artifacts.require('PullOracleConsumerBaseMock');
 const ethers = require('ethers');
 const {
-  decodeWords,
   decodeTwoUint256Arrays,
   encodeCallData,
   buildSignedExtraData,
   buildUnsignedExtraData,
   expectConstantSuccess,
   expectConstantRevert,
+  expectRevertArgs,
   constantResultHex,
   callConstantRaw,
   setBalance,
@@ -53,12 +53,6 @@ const flipLastByte = (extraDataHex) => {
   bytes[bytes.length - 1] ^= 0x01;
   return '0x' + bytes.toString('hex');
 };
-
-// Assert selector + return the decoded error-argument words (post-selector).
-function expectRevertArgs(res, signature) {
-  expectConstantRevert(res, signature);
-  return decodeWords(constantResultHex(res).slice(8));
-}
 
 contract('PullOracleConsumerBase', function (accounts) {
   let mock;

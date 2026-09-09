@@ -9,11 +9,7 @@ import {PullOracleConfigCodec, PackedConfig} from "src/libraries/PullOracleConfi
  * (JS) can only call external entry points, hence this wrapper.
  */
 contract PullOracleConfigCodecMock {
-    function packConfig(
-        uint8 maxPackageCount,
-        uint48 maxDelay,
-        uint48 maxFutureDrift
-    ) external pure returns (bytes32) {
+    function packConfig(uint8 maxPackageCount, uint48 maxDelay, uint48 maxFutureDrift) external pure returns (bytes32) {
         return PackedConfig.unwrap(PullOracleConfigCodec._packConfig(maxPackageCount, maxDelay, maxFutureDrift));
     }
 
@@ -37,7 +33,10 @@ contract PullOracleConfigCodecMock {
         bytes32 config,
         uint8 newValue
     ) external pure returns (bytes32 newConfig, uint256 oldValue) {
-        (PackedConfig wrapped, uint256 previous) = PullOracleConfigCodec._updateMaxPackageCount(PackedConfig.wrap(config), newValue);
+        (PackedConfig wrapped, uint256 previous) = PullOracleConfigCodec._updateMaxPackageCount(
+            PackedConfig.wrap(config),
+            newValue
+        );
         newConfig = PackedConfig.unwrap(wrapped);
         oldValue = previous;
     }
@@ -46,7 +45,10 @@ contract PullOracleConfigCodecMock {
         bytes32 config,
         uint48 newValue
     ) external pure returns (bytes32 newConfig, uint256 oldValue) {
-        (PackedConfig wrapped, uint256 previous) = PullOracleConfigCodec._updateMaxDelay(PackedConfig.wrap(config), newValue);
+        (PackedConfig wrapped, uint256 previous) = PullOracleConfigCodec._updateMaxDelay(
+            PackedConfig.wrap(config),
+            newValue
+        );
         newConfig = PackedConfig.unwrap(wrapped);
         oldValue = previous;
     }
@@ -55,7 +57,10 @@ contract PullOracleConfigCodecMock {
         bytes32 config,
         uint48 newValue
     ) external pure returns (bytes32 newConfig, uint256 oldValue) {
-        (PackedConfig wrapped, uint256 previous) = PullOracleConfigCodec._updateMaxFutureDrift(PackedConfig.wrap(config), newValue);
+        (PackedConfig wrapped, uint256 previous) = PullOracleConfigCodec._updateMaxFutureDrift(
+            PackedConfig.wrap(config),
+            newValue
+        );
         newConfig = PackedConfig.unwrap(wrapped);
         oldValue = previous;
     }

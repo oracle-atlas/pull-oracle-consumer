@@ -253,6 +253,23 @@ function expectConstantSuccess(res) {
   return decodeWords(hex);
 }
 
+// Assert a revert selector and return the decoded error-argument words
+// (post-selector) for per-argument assertions.
+function expectRevertArgs(res, signature) {
+  expectConstantRevert(res, signature);
+  return decodeWords(constantResultHex(res).slice(8));
+}
+
+// Assert a constant call to a void function succeeded (no revert, no return
+// data to decode).
+function expectVoidSuccess(res) {
+  const ret = constantRetText(res);
+  expect(
+    ret,
+    `constant call failed, ret="${ret}", response=${JSON.stringify(res)}`
+  ).to.not.match(/REVERT|FAILED/);
+}
+
 // Assert a constant (view) call reverted with a specific custom error.
 // expectedWords: optional array of BigInt|number for the error arguments
 // (each compared against the corresponding 32-byte word after the selector).
@@ -448,7 +465,9 @@ module.exports = {
   constantResultHex,
   constantRetText,
   expectConstantSuccess,
+  expectVoidSuccess,
   expectConstantRevert,
+  expectRevertArgs,
   // transactions
   sleep,
   waitForTransactionReceipt,
