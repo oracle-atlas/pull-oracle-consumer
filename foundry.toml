@@ -31,6 +31,14 @@ solc_version = "0.8.24"
 # on Ethereum Mainnet and major L2s (Arbitrum, Optimism, Base, etc.).
 evm_version = "cancun"
 
+# Foundry >= 1.8 defaults unit tests to per-call isolation: each top-level call
+# runs as its own transaction, so transient storage is cleared between the two
+# mock calls that the cross-call tests (leak / caller-tstore) deliberately rely
+# on. The transient suites assume real-chain EIP-1153 semantics — one test = one
+# transaction — so isolation must stay off. (Verified: forge 1.5.1 passes,
+# forge 1.8.1 fails these two cases with isolation on.)
+isolate = false
+
 [profile.examples-standard]
 src = "examples/standard"
 out = "out"
