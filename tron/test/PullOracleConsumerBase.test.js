@@ -19,18 +19,16 @@ const {
   expectConstantSuccess,
   expectConstantRevert,
   expectRevertArgs,
+  dummyId,
   constantResultHex,
   callConstantRaw,
   setBalance,
-  toTronHex,
   currentSeconds,
   FEED_PACKAGE_SIZE,
   PRIMARY_SIGNER_PK,
   SECONDARY_SIGNER_PK,
   UNAUTHORIZED_SIGNER_PK,
-  PRIMARY_SIGNER,
-  SECONDARY_SIGNER,
-  UNAUTHORIZED_SIGNER,
+  UNAUTHORIZED_SIGNER_TRON,
 } = require('../test-utils');
 
 const TARGET_ID = '0x11223344';
@@ -38,7 +36,6 @@ const TARGET_PRICE = 50000n * 10n ** 18n;
 const DUMMY_PRICE = 100n * 10n ** 18n;
 
 // Dummy feed ID: unique per index, never collides with the targets above.
-const dummyId = (i) => '0x' + ethers.keccak256(ethers.toUtf8Bytes('dummy' + i)).slice(2, 10);
 
 // Flip the first byte of an extraData payload (breaks the signing digest).
 const flipFirstByte = (extraDataHex) => {
@@ -477,7 +474,7 @@ contract('PullOracleConsumerBase', function (accounts) {
 
       const extraData = buildSignedExtraData(UNAUTHORIZED_SIGNER_PK, ids, prices, timestamps);
       const words = expectRevertArgs(await runAuth(extraData), 'UnauthorizedSigner(address)');
-      expect(words[0]).to.equal(BigInt('0x' + toTronHex(UNAUTHORIZED_SIGNER)));
+      expect(words[0]).to.equal(BigInt('0x' + UNAUTHORIZED_SIGNER_TRON));
     });
 
     // test_authenticateAndUnpackExtraData_Revert_TamperedData

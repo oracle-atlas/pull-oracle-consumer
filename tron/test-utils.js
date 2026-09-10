@@ -45,10 +45,6 @@ const ZERO_ADDR = '410000000000000000000000000000000000000000';
 
 const strip0x = (hex) => String(hex).replace(/^0x/, '');
 
-// Left-pad a private key to 32 bytes — foundry's vm.addr/sign accept short
-// keys like 0x01, ethers' secp256k1 layer does not.
-const normalizePk = (pk) => ethers.zeroPadValue(pk, 32);
-
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /* ————————————————————————————————————————————————————————————————————————
@@ -58,7 +54,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Derive the 0x-hex (EVM-style, 20-byte) address from a private key — mirrors
 // foundry vm.addr. Pure JS: usable before the tronWeb global is ready.
 function computeSignerAddress(pk) {
-  return ethers.computeAddress(normalizePk(pk));
+  return ethers.computeAddress(pk);
 }
 
 // 0x-hex 20-byte address → Tron 41-hex (for constructor args / TronWeb APIs).
@@ -84,12 +80,17 @@ function toHex(address) {
 
 const PRIMARY_SIGNER_PK = '0x3984ba7c2f5d0b43eeed79c2f6498969596432ddce18ba031ef1a6d78b15c55b';
 const SECONDARY_SIGNER_PK = '0xcdfdcba39f49d5858113d6b142ee2128407bd65a9604af271a9cf31a32009131';
-const UNAUTHORIZED_SIGNER_PK = '0x01';
+const UNAUTHORIZED_SIGNER_PK = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
 // EVM-style 0x-hex addresses derived above (pure ethers — safe at module load).
-const PRIMARY_SIGNER = ethers.computeAddress(normalizePk(PRIMARY_SIGNER_PK));
-const SECONDARY_SIGNER = ethers.computeAddress(normalizePk(SECONDARY_SIGNER_PK));
-const UNAUTHORIZED_SIGNER = ethers.computeAddress(normalizePk(UNAUTHORIZED_SIGNER_PK));
+const PRIMARY_SIGNER = ethers.computeAddress(PRIMARY_SIGNER_PK);
+const SECONDARY_SIGNER = ethers.computeAddress(SECONDARY_SIGNER_PK);
+const UNAUTHORIZED_SIGNER = ethers.computeAddress(UNAUTHORIZED_SIGNER_PK);
+
+// Tron 41-hex forms of the same addresses — for TronWeb APIs / constructor args.
+const PRIMARY_SIGNER_TRON = toTronHex(PRIMARY_SIGNER);
+const SECONDARY_SIGNER_TRON = toTronHex(SECONDARY_SIGNER);
+const UNAUTHORIZED_SIGNER_TRON = toTronHex(UNAUTHORIZED_SIGNER);
 
 /* ————————————————————————————————————————————————————————————————————————
                             SIGNING HELPERS
@@ -109,7 +110,7 @@ function errorSelector(reason) {
 // check in PullOracleSignature. concat() returns a hex string on ethers 6.17,
 // so getBytes() here is load-bearing: it hex-decodes it back to bytes.
 function signDigest(pk, digest) {
-  const { r, s, yParity } = new ethers.SigningKey(normalizePk(pk)).sign(digest);
+  const { r, s, yParity } = new ethers.SigningKey(pk).sign(digest);
   return ethers.getBytes(ethers.concat([r, s, ethers.toBeHex(yParity + 27, 1)]));
 }
 
@@ -185,6 +186,18 @@ function decodeWords(hex) {
   return words;
 }
 
+// Decode an ABI-encoded dynamic `bytes` return ([offset][len][data...]) into
+// a 0x-hex string. `words` is the decoded word array from decodeWords.
+// Handles data spanning multiple words via len.
+function decodeBytes(words) {
+  const len = Number(words[1]);
+  let hex = '';
+  for (let i = 0; i < len; i++) {
+    hex += words[2 + Math.floor(i / 32)].toString(16).padStart(64, '0').slice((i % 32) * 2, (i % 32) * 2 + 2);
+  }
+  return '0x' + hex;
+}
+
 // Decode an ABI-encoded (uint256[], uint256[]) return payload (e.g. batch
 // search results) into two BigInt arrays. Offsets are byte-based, relative to
 // the start of the return-data word stream.
@@ -222,8 +235,12 @@ async function callConstant(contractAddress, signature, args, extraData, from) {
   return callConstantRaw(contractAddress, input, from);
 }
 
+// Return data / revert data as one lowercase hex string. Two channels use
+// different field names: constant calls expose `constant_result`, broadcast
+// transaction receipts expose `contractResult`.
 function constantResultHex(res) {
-  return (res.constant_result || [])
+  const items = res.constant_result || res.contractResult || [];
+  return items
     .map((x) => strip0x(x).toLowerCase())
     .join('');
 }
@@ -252,6 +269,39 @@ function expectConstantSuccess(res) {
   expect(hex, `no constant_result for successful call, ret="${ret}", response=${JSON.stringify(res)}`).to.not.be.empty;
   return decodeWords(hex);
 }
+
+// Assert a reverting constructor deployment via the raw createSmartContract
+// path. tronbox .new() throws client-side on reverting constructors and its
+// error path does not surface contractResult; the raw path returns a fully
+// populated receipt (verified on TRE).
+// `artifacts` is the TronBox global passed in from the test file.
+async function expectConstructorRevert(artifact, ctorArgs, reason, pk) {
+  const from = tronWeb.address.fromPrivateKey(pk);
+  const txObj = await tronWeb.transactionBuilder.createSmartContract(
+    {
+      abi: artifact.abi,
+      bytecode: artifact.bytecode,
+      parameters: ctorArgs,
+      feeLimit: 1000e6,
+      callValue: 0,
+      userFeePercentage: 0,
+    },
+    from
+  );
+  const sent = await tronWeb.trx.sendRawTransaction(await tronWeb.trx.sign(txObj, pk));
+  const info = await waitForTransactionReceipt(sent.txid);
+  expect(info.receipt.result, `expected REVERT, got ${JSON.stringify(info.receipt)}`).to.equal('REVERT');
+  const selector = errorSelector(reason);
+  const cr = (info.contractResult || [])
+    .map((x) => strip0x(x).toLowerCase())
+    .join('');
+  expect(cr.startsWith(selector), `expected deploy revert ${reason} (0x${selector}), got "${cr}"`).to.be.true;
+  return info;
+}
+
+// Deterministic 4-byte feed ID from a seed string — mirrors the Foundry
+// mocks' dummy-id pattern (bytes4(keccak256(...))).
+const dummyId = (seed) => '0x' + ethers.keccak256(ethers.toUtf8Bytes(String(seed))).slice(2, 10);
 
 // Assert a revert selector and return the decoded error-argument words
 // (post-selector) for per-argument assertions.
@@ -308,6 +358,29 @@ async function waitForTransactionReceipt(txid, { timeoutMs = 30000, intervalMs =
     }
     await sleep(intervalMs);
   }
+}
+
+// Assert a broadcast transaction succeeded and return its receipt.
+async function expectTxSuccess(txPromise) {
+  const txid = await txPromise;
+  const info = await waitForTransactionReceipt(txid);
+  expect(
+    info.receipt.result,
+    `expected tx SUCCESS, got ${JSON.stringify(info.receipt)}`
+  ).to.equal('SUCCESS');
+  return info;
+}
+
+// Deploy via a TronBox abstraction's .new(...) promise and return the
+// deployment txid + receipt — lets tests assert constructor events from the
+// creation transaction's logs.
+//   const { txid, info, address } = await deployWithReceipt(Mock.new(...args, { from }));
+async function deployWithReceipt(deployPromise) {
+  const instance = await deployPromise;
+  const txid = instance.transactionHash;
+  expect(txid, 'deployment txid unavailable on contract instance').to.exist;
+  const info = await waitForTransactionReceipt(txid);
+  return { txid, info, address: instance.address };
 }
 
 // TronBox transaction methods resolve with a transaction id and do NOT throw on
@@ -396,8 +469,10 @@ async function setBalance(address, trxAmount) {
   await tronWeb.send('tre_setAccountBalance', [address, trxAmount * 1e6]);
 }
 
-// Latest node block time in seconds, as BigInt — matches the BigInt domain
-// of decoded return values / revert args, so assertions compare like-for-like.
+// Latest node block time in seconds, as BigInt — the single time source for
+// payload timestamps and assertions (TRE mines on demand, so this tracks wall
+// clock as closely as the chain allows; BigInt keeps the assertion domain
+// uniform with decoded return values and revert args).
 async function currentSeconds() {
   const block = await tronWeb.trx.getCurrentBlock();
   return BigInt(block.block_header.raw_data.timestamp) / 1000n;
@@ -447,6 +522,9 @@ module.exports = {
   PRIMARY_SIGNER,
   SECONDARY_SIGNER,
   UNAUTHORIZED_SIGNER,
+  PRIMARY_SIGNER_TRON,
+  SECONDARY_SIGNER_TRON,
+  UNAUTHORIZED_SIGNER_TRON,
   // signing
   errorSelector,
   signDigest,
@@ -459,6 +537,7 @@ module.exports = {
   encodeCallData,
   writeWord,
   decodeWords,
+  decodeBytes,
   decodeTwoUint256Arrays,
   callConstantRaw,
   callConstant,
@@ -468,9 +547,12 @@ module.exports = {
   expectVoidSuccess,
   expectConstantRevert,
   expectRevertArgs,
+  expectConstructorRevert,
   // transactions
   sleep,
   waitForTransactionReceipt,
+  expectTxSuccess,
+  deployWithReceipt,
   expectRevert,
   expectDeployRevert,
   expectEvent,
@@ -478,4 +560,5 @@ module.exports = {
   currentSeconds,
   getPrivateKeys,
   sendRawCalldata,
+  dummyId,
 };
