@@ -18,3 +18,4 @@ node_modules/
 .vscode/
 .yarn/
 **/.DS_Store
+tron/
